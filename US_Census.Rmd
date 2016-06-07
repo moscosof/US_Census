@@ -1,0 +1,96 @@
+---
+title: "US Census"
+author: "Francia Moscoso"
+date: "June 2, 2016"
+output: html_document
+---
+<br>
+```{r LoadLib, message=F, warning=F}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(cowplot)
+library(devtools)
+library(reshape)
+ 
+
+#Default directory
+#http://www.census.gov/easystats/
+setwd("~/SprintboardProject/US_Census") 
+```
+<br>
+```{r comment="", echo=FALSE}
+#Load the Census Info
+Cen_train <- read.csv("./DataSets/US_Census.csv", header = TRUE)
+dim(Cen_train)
+str(Cen_train)
+
+#Note: When the csv file has a numeric value with "," thousand separator, R will consider it as character and will create a factor by default. It is better if no thousand separator is specified in the csv file, Otherwise, you can have problems sorting the numeric column because of the levels.  Spend too many hours trying to figure it out.
+
+#Melt the data
+mdata <- melt(Cen_train, id=c("Borough", "Description"))
+str(mdata)
+colnames(mdata)  <- c("Borough","Desc","Race","Total" )
+
+```
+<br>
+<br>
+```{r comment="", echo=TRUE}
+By_Race <- mdata %>%  select(Borough, Race, Desc, Total) %>% filter(Desc=="Total")
+
+str(By_Race)
+
+By_Race <- By_Race  %>%  arrange(Borough,desc(Total))
+  
+u <- ggplot(By_Race, aes(x=Race, y=Total, fill=Race)) + 
+geom_bar(stat = "identity") + 
+facet_wrap( ~ Borough, scales="free_y", ncol=2) +
+ggtitle("US Census Bureau\n") +
+theme(axis.title.x = element_blank(),
+      axis.text.x = element_blank(),
+      strip.text.x = element_text(size=9),
+      legend.title = element_blank(),
+      legend.position="right") 
+ 
+ggdraw(add_sub(u, "Source: U.S. Census Bureau, 2010-2014 American Community Survey 5-Year Estimates. Hispanic refers to an ethnic category; Hispanics may be of any race.\nhttp://www.census.gov/easystats/",size=9, x=0.6,y=0.5, hjust = 0.6, vjust = 0.5))
+```
+<br>
+<br>
+```{r comment="", echo=TRUE}
+OverUnder <- mdata %>% filter(Desc=="Male_Under_18" | Desc=="Male_18_and_over" | 
+                              Desc=="Female_Under_18" | Desc=="Female_18_and_over")
+levels(OverUnder$Desc)
+#levels(x)[8] <- "Over"
+#levels(x)[9] <- "Under"
+
+
+vUnder = c("Male_Under_18", "Female_Under_18")
+vOver  = c("Male_18_and_over", "Female_18_and_over")
+
+levels(OverUnder$Desc)
+
+OverUnder[(OverUnder$Desc %in%  vUnder),5] <- "Under 18"
+OverUnder[(OverUnder$Desc %in%  vOver),5] <- "18 and Over"
+
+colnames(OverUnder)
+colnames(OverUnder)[5] <- "Under_Over"
+
+OverUnder <- OverUnder %>% group_by(Borough,Race, Under_Over) %>%  
+            summarise(Total=sum (Total))
+head(OverUnder)
+tail(OverUnder)
+
+
+u <- ggplot(OverUnder, aes(x=Race, y=Total, fill=Under_Over)) + 
+geom_bar(stat = "identity") + 
+facet_wrap( ~ Borough, scales="free_y", ncol=2) +
+   theme(axis.text.x = element_text(angle = 45, hjust = 1, size=11,color="darkred")) +
+     ggtitle("US Census Bureau") + 
+     theme(plot.title = element_text(lineheight=3, face="bold", color="black", size=20))
+ 
+ggdraw(add_sub(u, "Source: U.S. Census Bureau, 2010-2014 American Community Survey 5-Year Estimates.\nHispanic refers to an ethnic category; Hispanics may be of any race.\n http://www.census.gov/easystats/",size=9, x=0.70,y=0.5, hjust = 0.6, vjust = 0.5))
+ 
+```
+
+
